@@ -1,4 +1,4 @@
-# threebody/__init__.py
+# kepler/__init__.py
 
 from .kepler import retrieveKeplerLightCurve, getKplrIds, getKplrId, analyseKeplerLightCurve
 
