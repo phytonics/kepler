@@ -16,6 +16,11 @@
 
 import numpy as np
 
+def find_index_above_threshold(arr, threshold, start=0, end=None):
+    for i in range(start, len(arr) if end is None else end):
+        if arr[i] >= threshold: break
+    return i
+
 
 def median_filter(x, y, num_bins, bin_width=None, x_min=None, x_max=None):
     """Computes the median y-value in uniform intervals (bins) along the x-axis.
@@ -41,6 +46,26 @@ def median_filter(x, y, num_bins, bin_width=None, x_min=None, x_max=None):
   Raises:
     ValueError: If an argument has an inappropriate value.
   """
+    if num_bins >= 2 and len(x) >= 2 and len(x) == len(y):
+        if x_min is None: x_min = x[0]
+        if x_max is None: x_max = x[-1]
+        if x_min < x_max and x_min < x[-1]:
+            if bin_width is not None: bin_width = (x_max - x_min) / num_bins
+            if bin_width > 0 and bin_width < x_max - x_min:
+                bin_spacing = (x_max - x_min - bin_width) / (num_bins - 1)
+                result = []
+                j_start = j_end = find_index_above_threshold(x, x_min)
+                bin_min, bin_max = x_min, x_min + bin_width
+                for i in range(num_bins):
+                    j_start = find_index_above_threshold(x, bin_min, j_start)
+                    j_end = find_index_above_threshold(x, bin_max, j_end)
+                    result.append(np.median(y[j_start:j_end]) if j_end > j_start else y)
+                    bin_min += bin_spacing
+                    bin_max += bin_spacing
+                
+                return np.array(result)
+
+    # All the weird errors why
     if num_bins < 2:
         raise ValueError("num_bins must be at least 2. Got: %d" % num_bins)
 
@@ -49,8 +74,7 @@ def median_filter(x, y, num_bins, bin_width=None, x_min=None, x_max=None):
     if x_len < 2:
         raise ValueError("len(x) must be at least 2. Got: %s" % x_len)
     if x_len != len(y):
-        raise ValueError("len(x) (got: %d) must equal len(y) (got: %d)" % (x_len,
-                                                                           len(y)))
+        raise ValueError("len(x) (got: %d) must equal len(y) (got: %d)" % (x_len, len(y)))
 
     # Validate x_min and x_max.
     x_min = x_min if x_min is not None else x[0]
@@ -60,8 +84,7 @@ def median_filter(x, y, num_bins, bin_width=None, x_min=None, x_max=None):
                          (x_min, x_max))
     if x_min > x[-1]:
         raise ValueError(
-            "x_min (got: %d) must be less than or equal to the largest value of x "
-            "(got: %d)" % (x_min, x[-1]))
+            "x_min (got: %d) must be less than or equal to the largest value of x (got: %d)" % (x_min, x[-1]))
 
     # Validate bin_width.
     bin_width = bin_width if bin_width is not None else (x_max - x_min) / num_bins
@@ -69,7 +92,7 @@ def median_filter(x, y, num_bins, bin_width=None, x_min=None, x_max=None):
         raise ValueError("bin_width must be positive. Got: %d" % bin_width)
     if bin_width >= x_max - x_min:
         raise ValueError(
-            "bin_width (got: %d) must be less than x_max - x_min (got: %d)" %
+                "bin_width (got: %d) must be less than x_max - x_min (got: %d)" %
             (bin_width, x_max - x_min))
 
     bin_spacing = (x_max - x_min - bin_width) / (num_bins - 1)
