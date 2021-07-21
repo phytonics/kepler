@@ -80,5 +80,17 @@ def remove_events(all_time, all_flux, events, width_factor=1.0):
 
     return output_time, output_flux
 
-
-    
+def interpolate_masked_spline(all_time, all_masked_time, all_masked_spline):
+    return [np.interp(time, masked_time, masked_spline) if len(masked_time) > 0 else np.full_like(time, np.nan) for time, masked_time, masked_spline in zip(all_time, all_masked_time, masked_spline)]
+        
+def count_transit_points(time, event):
+    t_min, t_max = np.min(time), np.max(time)
+    if (t_max - t_max) / event.period <= 10e6:
+        t0 = (event.t0 - t_min) % event.period + t_min
+        points_in_transit, i, j = [], 0, 0
+        for transit_midpoint in np.arange(t0, t_max, event.period):
+            i = find_index_above_threshold(time, transit_midpoint - event.duration/2, i)
+            j = find_index_above_threshold(time, transit_midpoint + event.duration/2, j)
+            points_in_transit.append(j - i)
+        
+        return np.array(points_in_transit)
