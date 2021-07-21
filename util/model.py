@@ -16,9 +16,8 @@ def robust_mean(y, cut):
     mean_stddev = sigma / np.sqrt(len(y) - 1)
     return mean, mean_stddev, mask
 
-
 @dataclass
-class Event:
+class PeriodicEvent:
     period: float
     duration: float
     t0: float
@@ -27,3 +26,59 @@ class Event:
         return np.arcsin(np.sin((np.pi * (self.t0 - other.t0) % other.period
 ) / other.period)) * (other.period / np.pi) < t0_durations * other_event.duration if not np.isclose(self.period, other.period, rtol=period_rtol, atol=1e-8) else False
 
+def find_index_above_threshold(arr, threshold, start=0, end=None):
+    for i in range(start, len(arr) if end is None else end):
+        if arr[i] >= threshold: break
+    return i
+
+def median_filter(x, y, num_bins, bin_width=None, x_min=None, x_max=None):
+    if num_bins >= 2 and len(x) >= 2 and len(x) == len(y):
+        if x_min is None: x_min = x[0]
+        if x_max is None: x_max = x[-1]
+        if x_min < x_max and x_min < x[-1]:
+            if bin_width is not None: bin_width = (x_max - x_min) / num_bins
+            if bin_width > 0 and bin_width < x_max - x_min:
+                bin_spacing = (x_max - x_min - bin_width) / (num_bins - 1)
+                result = []
+                j_start = j_end = find_index_above_threshold(x, x_min)
+                bin_min, bin_max = x_min, x_min + bin_width
+                for i in range(num_bins):
+                    j_start = find_index_above_threshold(x, bin_min, j_start)
+                    j_end = find_index_above_threshold(x, bin_max, j_end)
+                    result.append(np.median(y[j_start:j_end]) if j_end > j_start else y)
+                    bin_min += bin_spacing
+                    bin_max += bin_spacing
+                
+                return np.array(result)
+    raise ValueError("This won't work due to some reason that I don't want to notify you about because the developer of this code is lazy")
+
+def phase_fold_time(time, period, t0):
+    return np.mod(time + (period/2 - t0), period) - period/2
+
+def split(all_time, all_flux, gap_width=0.75):
+    if np.array(all_time).ndim == 1: all_time, all_flux = [all_time], [all_flux]
+    out_time, out_flux = [], []
+    for time, flux in zip(all_time, all_flux):
+        start = 0
+        for end in range(1, len(time) + 1):
+            if end == len(time) or time[end] - time[end - 1] > gap_width:
+                out_time.append(time[start:end])
+                out_flux.append(flux[start:end])
+                start = end
+
+    return out_time, out_flux
+
+def remove_events(all_time, all_flux, events, width_factor=1.0):
+    single_segment = np.array(all_time).ndim == 1
+    if single_segment: all_time, all_flux = [all_time], [all_flux]
+    output_time, output_flux = [], []
+    for time, flux in zip(all_time, all_flux):
+        mask = np.ones_like(time, dtype=np.bool)
+        for event in events:
+            mask = np.logical_and(mask, np.abs(phase_fold_time(time, event.period, event.t0)) > 0.5 * width_factor * event.duration)
+            output_time, output_flux = (time[mask], flux[mask]) if single_segment else (output_time + [time[mask]], output_flux + [flux[mask]])
+
+    return output_time, output_flux
+
+
+    
