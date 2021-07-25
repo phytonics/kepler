@@ -1,6 +1,6 @@
 from lightkurve.lightcurve import KeplerLightCurve
 from typing import Union
-
+import os
 
 class LightCurve:
     def __init__(self, klc: KeplerLightCurve, kplrId: Union[int, str, float]):
@@ -28,8 +28,8 @@ class LightCurve:
     def __getattr__(self, item):
         return eval(f"self.klc.{item}")
 
-    def __getitem__(self, value):
-        return self.klc[item]
+    def __getitem__(self, key):
+        return self.klc[key]
 
     def __setitem__(self, key, value):
         self.klc[key] = value
